@@ -1,0 +1,16 @@
+.incident-row,
+.all-incidents {
+  position: relative;
+}
+.incident-row.updating::before,
+.all-incidents.updating::before {
+  content: "cargando";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.5);
+}/*# sourceMappingURL=admin-styles.css.map */
