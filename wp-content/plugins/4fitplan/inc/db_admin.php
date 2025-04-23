@@ -15,31 +15,84 @@
     function mostrar_panel_planes() {
         global $wpdb;
         $tabla = $wpdb->prefix . 'planes_alimentacion';
+
+        $opciones_objetivo          = role_options('objetivo');
+        $opciones_preferencias      = role_options('preferencias');
+        $opciones_restricciones     = role_options('restricciones');
+        $opciones_comidas_diarias   = role_options('comidas_diarias');
     
         // Obtener los filtros si se han aplicado
-        $filtro_peso = isset($_GET['peso']) ? sanitize_text_field($_GET['peso']) : '';
-        $filtro_altura = isset($_GET['altura']) ? sanitize_text_field($_GET['altura']) : '';
-        $filtro_objetivo = isset($_GET['objetivo']) ? sanitize_text_field($_GET['objetivo']) : '';
+        $filtro_peso            = isset($_GET['peso']) ? sanitize_text_field($_GET['peso']) : '';
+        $filtro_peso            = redondear_a_multiplo_de_5($filtro_peso);
+        $filtro_altura          = isset($_GET['altura']) ? sanitize_text_field($_GET['altura']) : '';
+        $filtro_altura          = redondear_a_multiplo_de_5($filtro_altura);
+        $filtro_objetivo        = isset($_GET['objetivo']) ? sanitize_text_field($_GET['objetivo']) : '';
+        $filtro_preferencias    = isset($_GET['preferencias']) ? sanitize_text_field($_GET['preferencias']) : '';
+        $filtro_restricciones   = isset($_GET['restricciones']) ? sanitize_text_field($_GET['restricciones']) : '';
+        $filtro_comidas_diarias = isset($_GET['comidas_diarias']) ? sanitize_text_field($_GET['comidas_diarias']) : '';
+        $filtro_dia             = isset($_GET['dia']) ? sanitize_text_field($_GET['dia']) : '';
     
         // Construcción de la consulta SQL con filtros
         $query = "SELECT * FROM $tabla WHERE 1=1";
-        if (!empty($filtro_peso)) $query .= " AND peso = $filtro_peso";
-        if (!empty($filtro_altura)) $query .= " AND altura = $filtro_altura";
-        if (!empty($filtro_objetivo)) $query .= $wpdb->prepare(" AND objetivo LIKE %s", "%$filtro_objetivo%");
+        if (!empty($filtro_peso))           $query .= " AND peso = $filtro_peso";
+        if (!empty($filtro_altura))         $query .= " AND altura = $filtro_altura";
+        if (!empty($filtro_objetivo))       $query .= " AND objetivo = $filtro_objetivo";
+        if (!empty($filtro_preferencias))   $query .= " AND preferencias = $filtro_preferencias";
+        if (!empty($filtro_dia))            $query .= " AND dia = $filtro_dia";
+        if (!empty($filtro_comidas_diarias))$query .= " AND comidas_diarias = $filtro_comidas_diarias";
+        if (!empty($filtro_restricciones))  $query .= $wpdb->prepare(" AND restricciones LIKE %s", "%$filtro_restricciones%");
     
         $planes = $wpdb->get_results($query);
     
         // Renderizar la interfaz de administración
+        echo var_export($query, true);
         ?>
         <div class="wrap">
             <h1>📋 Planes de Alimentación</h1>
             
             <!-- Formulario de filtros -->
-            <form method="get" action="">
+            <form method="get" action="" id="filtrar_planes">
                 <input type="hidden" name="page" value="planes-alimentacion">
                 <input type="number" name="peso" placeholder="Peso (kg)" value="<?php echo esc_attr($filtro_peso); ?>">
                 <input type="number" name="altura" placeholder="Altura (cm)" value="<?php echo esc_attr($filtro_altura); ?>">
-                <input type="text" name="objetivo" placeholder="Objetivo" value="<?php echo esc_attr($filtro_objetivo); ?>">
+
+                <div class="form-cont">
+                    <label for="objetivo">Objetivo:</label><br>
+                    <select name="objetivo" id="objetivo">
+                        <option value="">Elige Objetivo...</option>
+                        <?php foreach($opciones_objetivo as $key => $objetivo): ?>
+                            <option value="<?php echo $objetivo ?>"><?php echo $objetivo ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-cont">
+                <label for="preferencias">Preferencias:</label><br>
+                    <select name="preferencias" id="preferencias">
+                        <option value="">Elige preferencias...</option>
+                        <?php foreach($opciones_preferencias as $key => $objetivo): ?>
+                            <option value="<?php echo $objetivo ?>"><?php echo $objetivo ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-cont">
+                <label for="restricciones">Restricciones:</label><br>
+                <select name="restricciones[]" id="restricciones" multiple size="4">
+                        <option value="">Elige restricciones...</option>
+                        <?php foreach($opciones_restricciones as $key => $objetivo): ?>
+                            <option value="<?php echo $objetivo ?>"><?php echo $objetivo ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-cont">
+                <label for="restricciones">Comidas diarias:</label><br>
+                <select name="comidas_diarias" id="comidas_diarias">
+                        <option value="">Elige opción...</option>
+                        <?php foreach($opciones_comidas_diarias as $key => $objetivo): ?>
+                            <option value="<?php echo $objetivo ?>"><?php echo $objetivo ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <input type="number" name="dia" placeholder="Día (1-30)">
                 <button type="submit" class="button button-primary">🔍 Filtrar</button>
             </form>
     
@@ -49,34 +102,36 @@
                 <input type="number" name="altura" placeholder="Altura (cm)" required>
                 <div class="form-cont">
                     <label for="objetivo">Objetivo:</label><br>
-                    <select name="objetivo" id="objetivo" required>
-                        <option value="pérdida de peso">Pérdida de peso</option>
-                        <option value="mantenimiento">Mantenimiento</option>
-                        <option value="ganancia muscular">Ganancia muscular</option>
+                        <select name="objetivo" id="objetivo" required>
+                        <?php foreach($opciones_objetivo as $key => $objetivo): ?>
+                            <option value="<?php echo $objetivo ?>"><?php echo $objetivo ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="form-cont">
-                <label for="preferencias">Preferencias Alimentarias:</label><br>
-                    <select name="preferencias" id="preferencias">
-                        <option value="">Ninguna</option>
-                        <option value="omnívoro">Omnívoro</option>
-                        <option value="vegetariano">Vegetariano</option>
-                        <option value="vegano">Vegano</option>
-                        <option value="cetogénico">Cetogénico</option>
-                        <option value="paleo">Paleo</option>
+                    <label for="preferencias">Preferencias:</label><br>
+                    <select name="preferencias" id="preferencias" required>
+                        <?php foreach($opciones_preferencias as $key => $objetivo): ?>
+                            <option value="<?php echo $objetivo ?>"><?php echo $objetivo ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="form-cont">
-                <label for="restricciones">Restricciones Alimentarias:</label><br>
-                    <select name="restricciones[]" id="restricciones" multiple size="4">
-                        <option value="sin gluten">Sin gluten</option>
-                        <option value="sin lactosa">Sin lactosa</option>
-                        <option value="sin frutos secos">Sin frutos secos</option>
-                        <option value="sin mariscos">Sin mariscos</option>
-                        <option value="sin huevo">Sin huevo</option>
+                    <label for="restricciones">Restricciones:</label><br>
+                    <select name="restricciones[]" id="restricciones" multiple size="4" required>
+                        <?php foreach($opciones_restricciones as $key => $objetivo): ?>
+                            <option value="<?php echo $objetivo ?>"><?php echo $objetivo ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
-                <input type="number" name="comidas_diarias" placeholder="Comidas al día (3-5)" required>
+                <div class="form-cont">
+                    <label for="restricciones">Comidas diarias:</label><br>
+                    <select name="comidas_diarias" id="comidas_diarias" required>
+                        <?php foreach($opciones_comidas_diarias as $key => $objetivo): ?>
+                            <option value="<?php echo $objetivo ?>"><?php echo $objetivo ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
                 <input type="number" name="dia" placeholder="Día (1-30)" required>
 
                 <button type="submit" class="button button-primary">⚡ Generar Plan</button>
@@ -97,24 +152,29 @@
                         <th>Restricciones</th>
                         <th>Comidas/Día</th>
                         <th>Día</th>
+                        <th>Plan</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php
-                    $planes = $wpdb->get_results("SELECT * FROM $tabla");
                     foreach ($planes as $plan) :
                     ?>
                         <tr>
                             <td><?php echo $plan->id; ?></td>
-                            <td><?php echo $plan->peso; ?> kg</td>
-                            <td><?php echo $plan->altura; ?> cm</td>
+                            <td><?php echo $plan->peso; ?>kg</td>
+                            <td><?php echo $plan->altura; ?>cm</td>
                             <td><?php echo esc_html($plan->objetivo); ?></td>
                         
                             <td><?php echo $plan->preferencias; ?></td>
-                            <td><?php echo $plan->restricciones; ?></td>
+                            <?php $restricciones_br = str_replace(',', '<br>', $plan->restricciones);?>
+                            <td><?php echo $restricciones_br; ?></td>
                             <td><?php echo $plan->comidas_diarias; ?></td>
                             <td><?php echo $plan->dia; ?></td>
+                            <?php 
+                                $plan_array = db_json_to_array($plan->plan_json);
+                            ?>
+                            <td><?php echo display_nutrition($plan_array); ?></td>
                             <td>
                                 <a href="?page=planes-alimentacion&eliminar=<?php echo $plan->id; ?>" class="button button-danger">🗑️ Eliminar</a>
                             </td>
@@ -124,7 +184,8 @@
             </table>
         </div>
         <style>
-            #form-generar-plan {
+            #form-generar-plan,
+            #filtrar_planes {
                 display: flex;
                 align-items: flex-end;
             }

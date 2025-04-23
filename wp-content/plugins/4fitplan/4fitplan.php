@@ -20,6 +20,7 @@ function forfit_wp_enqueue_scripts() {
     wp_register_script( 'flatpikr', plugin_dir_url( __FILE__ ) . 'assets/js/flatpickr.min.js', array(), $version );
     wp_register_script( 'flatpikr-es', plugin_dir_url( __FILE__ ) . 'assets/js/fatpickr.es.js', array(), $version );
     wp_localize_script( 'custom-scripts', 'WPURLS', array( 'siteurl' => get_option('siteurl') )); 
+    
 
     wp_enqueue_script( 'localize-url' );    
     wp_enqueue_script( 'custom-scripts' );
@@ -128,9 +129,16 @@ require('shortcodes.php');
 require('cronjobs.php');
 require('subscriptions-control.php');
 require('billing.php');
-require('inc/api-ia.php');
+
+require('inc/ajax-handler.php');
+require('inc/helper-functions.php');
+require('inc/api-handler.php');
+require('inc/db-handler.php');
+require('inc/form-handler.php');
+require('inc/shortcodes.php');
+require('inc/signup-form.php');
 require('inc/db_admin.php');
-require('inc/display-nutrition.php');
+require('inc/user-data.php');
 
 register_activation_hook(__FILE__, 'crear_tabla_planes_alimentacion');
 

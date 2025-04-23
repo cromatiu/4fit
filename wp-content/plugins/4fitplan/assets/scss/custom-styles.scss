@@ -490,7 +490,25 @@ $box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
 		align-items: center;
 		gap: 30px;
 		flex-direction: column;
-		padding: 4px;
+		padding: 80px 0;
+		.top {
+			width: 100%;
+			.progress-container {
+				background: $light_gray;
+				border-radius:2px;
+				overflow:hidden;
+				margin-bottom: 8px;
+				.progress-bar {
+					background: $brand;
+					height:4px;
+					border-radius:2px;
+				}
+			}
+			p {
+				text-align: center;
+				color: $gray;
+			}
+		}
 		.form-nav {
 			button {
 				color: $white;
@@ -515,4 +533,20 @@ $box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
 @keyframes fadeIn {
 	from { opacity: 0; transform: translateY(10px); }
 	to { opacity: 1; transform: translateY(0); }
+}
+.client-nutrition-data {
+	margin-left: 0;
+	padding-left: 0;
+	margin-bottom: 72px;
+	li {
+		display: flex;
+		align-items: flex-start;
+		justify-content: flex-start;
+		gap: 8px;
+		margin-bottom: 16px;
+		strong {
+			display: block;
+			min-width: 150px;
+		}
+	}
 }

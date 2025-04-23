@@ -1585,7 +1585,25 @@ span.flatpickr-weekday {
   -webkit-box-direction: normal;
       -ms-flex-direction: column;
           flex-direction: column;
-  padding: 4px;
+  padding: 80px 0;
+}
+.form-step .step-container .top {
+  width: 100%;
+}
+.form-step .step-container .top .progress-container {
+  background: #EEEEEE;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.form-step .step-container .top .progress-container .progress-bar {
+  background: #82C3BF;
+  height: 4px;
+  border-radius: 2px;
+}
+.form-step .step-container .top p {
+  text-align: center;
+  color: #999999;
 }
 .form-step .step-container .form-nav button {
   color: #fff;
@@ -1630,4 +1648,26 @@ span.flatpickr-weekday {
     -webkit-transform: translateY(0);
             transform: translateY(0);
   }
+}
+.client-nutrition-data {
+  margin-left: 0;
+  padding-left: 0;
+  margin-bottom: 72px;
+}
+.client-nutrition-data li {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: start;
+      -ms-flex-align: start;
+          align-items: flex-start;
+  -webkit-box-pack: start;
+      -ms-flex-pack: start;
+          justify-content: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.client-nutrition-data li strong {
+  display: block;
+  min-width: 150px;
 }/*# sourceMappingURL=custom-styles.css.map */
