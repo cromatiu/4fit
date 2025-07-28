@@ -17,17 +17,25 @@ function hidden_woocommerce_checkout_fields( $fields ) {
      return $fields;
 }
 
-add_action( 'woocommerce_order_status_processing', 'always_orders_complete', 10, 1 );
+add_action( 'woocommerce_order_status_changed', 'always_orders_complete_on_processing', 10, 3 );
 
-function always_orders_complete( $order_id ) {
-    $order = wc_get_order( $order_id );
-
-    if( !empty( $order ) ) {
-        $order_status = $order->get_status();
-
-        if( $order_status == 'processing' ) {
+function always_orders_complete_on_processing( $order_id, $from_status, $to_status ) {
+    if ( $to_status === 'processing' ) {
+        $order = wc_get_order( $order_id );
+        if ( $order ) {
             $order->update_status( 'completed' );
         }
+    }
+}
+add_action( 'woocommerce_order_status_completed', 'fix_wpam_commission_rounding_bug', 5 );
+
+function fix_wpam_commission_rounding_bug( $order_id ) {
+    $order = wc_get_order( $order_id );
+	error_log($order->get_total());
+    if ( $order && ! is_numeric( $order->get_total() ) ) {
+        // Forzar un total válido si es necesario
+        $order->set_total( 0 );
+        $order->save();
     }
 }
 
@@ -216,12 +224,15 @@ function fourfit_woocommerce_notices($attrs) {
 add_shortcode('has_cart_items', 'fourfit_has_cart_items');
 
 function fourfit_has_cart_items() {
-	$cart =	WC()->cart->get_cart();
-	$has_items = 'NO';
-	if(!empty($cart)) {
-		$has_items = 'YES';
-	}
-	return $has_items;
+	if (
+        function_exists('WC') &&
+        WC()->cart instanceof WC_Cart &&
+        method_exists(WC()->cart, 'get_cart')
+    ) {
+        return !empty(WC()->cart->get_cart());
+    }
+
+    return false;
 }
 
 // ELIMINAR MENSAJE AL AÑADIR AL CARRO
@@ -242,3 +253,56 @@ function custom_code_after_cart_table() {
 		echo '</div>';
 	}
 }
+add_filter('woocommerce_login_redirect', 'custom_login_redirect_based_on_fields', 10, 2);
+add_filter('wp_login_redirect', 'custom_login_redirect_based_on_fields', 10, 3);
+
+function custom_login_redirect_based_on_fields( $redirect_to, $user ) {
+    if ( is_a( $user, 'WP_User' ) ) {
+        // Solo usuarios con suscripción activa
+        if ( get_user_suscription_status($user) === 'none' || get_user_suscription_status($user) === false ) {
+			return get_permalink(43141);
+        } else {
+            $campos_faltantes = uf_get_user_fields($user, ['nutrition','exercise', 'personal'], false);
+			
+            if ( !empty($campos_faltantes) ) {
+                return get_permalink(3882); // página del shortcode con formulario
+            }
+			return home_url('/');
+		}
+
+        // Si todo correcto, redirigimos a la home
+    }
+
+    // Para compatibilidad con wp_login_redirect que pasa 3 parámetros
+    return is_string($redirect_to) ? $redirect_to : home_url('/');
+}
+
+// Eliminar mensaje estándar "Tu pedido ha sido recibido"
+add_filter( 'woocommerce_thankyou_order_received_text', '__return_empty_string' );
+
+// Eliminar tabla de detalles del pedido
+add_action( 'woocommerce_before_thankyou', function() {
+    remove_action( 'woocommerce_thankyou', 'woocommerce_order_details_table', 10 );
+    remove_action( 'woocommerce_order_details_after_order_table', 'woocommerce_order_details_customer_details', 10 );
+}, 1 );
+
+// Insertar HTML personalizado
+add_action( 'woocommerce_thankyou', function( $order_id ) {
+	$url = home_url();
+
+	$user = wp_get_current_user();
+	$campos_faltantes = uf_get_user_fields( $user, ['nutrition','exercise','personal'], false );
+    // Si faltan campos, redirigir a la página del formulario
+    if ( ! empty( $campos_faltantes ) ) {
+        $url = get_permalink(3882); // Página del formulario
+    } 
+    echo '<div class="custom-thanks">
+        <h2>¡Ya formas parte de 4fit!</h2>
+        <p>Puedes empezar a ver todo el contenido que tenemos preparado para ti.</p>
+        <a href="' . $url . '" class="elementor-button">Empezar</a>
+    </div>';
+}, 20 );
+
+add_action( 'wp', function() {
+    remove_action( 'woocommerce_order_details_after_order_table', 'woocommerce_order_again_button' );
+});

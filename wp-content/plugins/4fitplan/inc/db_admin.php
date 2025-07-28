@@ -16,19 +16,19 @@
         global $wpdb;
         $tabla = $wpdb->prefix . 'planes_alimentacion';
 
-        $opciones_objetivo          = role_options('objetivo');
-        $opciones_preferencias      = role_options('preferencias');
-        $opciones_restricciones     = role_options('restricciones');
-        $opciones_comidas_diarias   = role_options('comidas_diarias');
+        $opciones_objetivo          = field_options('objetivo');
+        $opciones_preferencias      = field_options('preferencias');
+        $opciones_restricciones     = field_options('restricciones_list');
+        $opciones_comidas_diarias   = field_options('comidas_diarias');
     
         // Obtener los filtros si se han aplicado
-        $filtro_peso            = isset($_GET['peso']) ? sanitize_text_field($_GET['peso']) : '';
+        $filtro_peso            = isset($_GET['cliente_peso']) ? sanitize_text_field($_GET['cliente_peso']) : '';
         $filtro_peso            = redondear_a_multiplo_de_5($filtro_peso);
-        $filtro_altura          = isset($_GET['altura']) ? sanitize_text_field($_GET['altura']) : '';
+        $filtro_altura          = isset($_GET['cliente_altura']) ? sanitize_text_field($_GET['cliente_altura']) : '';
         $filtro_altura          = redondear_a_multiplo_de_5($filtro_altura);
         $filtro_objetivo        = isset($_GET['objetivo']) ? sanitize_text_field($_GET['objetivo']) : '';
         $filtro_preferencias    = isset($_GET['preferencias']) ? sanitize_text_field($_GET['preferencias']) : '';
-        $filtro_restricciones   = isset($_GET['restricciones']) ? sanitize_text_field($_GET['restricciones']) : '';
+        $filtro_restricciones   = isset($_GET['restricciones_list']) ? sanitize_text_field($_GET['restricciones_list']) : '';
         $filtro_comidas_diarias = isset($_GET['comidas_diarias']) ? sanitize_text_field($_GET['comidas_diarias']) : '';
         $filtro_dia             = isset($_GET['dia']) ? sanitize_text_field($_GET['dia']) : '';
     
@@ -40,12 +40,11 @@
         if (!empty($filtro_preferencias))   $query .= " AND preferencias = $filtro_preferencias";
         if (!empty($filtro_dia))            $query .= " AND dia = $filtro_dia";
         if (!empty($filtro_comidas_diarias))$query .= " AND comidas_diarias = $filtro_comidas_diarias";
-        if (!empty($filtro_restricciones))  $query .= $wpdb->prepare(" AND restricciones LIKE %s", "%$filtro_restricciones%");
+        if (!empty($filtro_restricciones))  $query .= $wpdb->prepare(" AND restricciones_list LIKE %s", "%$filtro_restricciones%");
     
         $planes = $wpdb->get_results($query);
     
         // Renderizar la interfaz de administración
-        echo var_export($query, true);
         ?>
         <div class="wrap">
             <h1>📋 Planes de Alimentación</h1>
@@ -282,13 +281,13 @@
         global $wpdb;
         $tabla = $wpdb->prefix . 'planes_alimentacion';
         
-        $peso = intval($_POST['peso']);
+        $peso = intval($_POST['cliente_peso']);
         $peso = redondear_a_multiplo_de_5($peso);
-        $altura = intval($_POST['altura']);
+        $altura = intval($_POST['cliente_altura']);
         $altura = redondear_a_multiplo_de_5($altura);
         $objetivo = sanitize_text_field($_POST['objetivo']);
         $preferencias = sanitize_text_field($_POST['preferencias']);
-        $restricciones = $_POST['restricciones'] ?? [];
+        $restricciones = $_POST['restricciones_list'] ?? [];
         $comidas_diarias = intval($_POST['comidas_diarias']);
         $dia = intval($_POST['dia']);
         // Verificar si el plan ya existe
@@ -327,3 +326,54 @@
         wp_send_json(["mensaje" => "Plan actualizado correctamente"]);
     }
     add_action('wp_ajax_editar_plan', 'editar_plan_ajax');
+
+    // 4) AJAX: save metrics
+    function fm_ajax_save_metrics() {
+        check_ajax_referer( 'fm_metrics_nonce', 'security' );
+        if ( ! is_user_logged_in() ) {
+            wp_send_json_error( 'not_logged_in' );
+        }
+        $user_id      = get_current_user_id();
+        $date         = sanitize_text_field( $_POST['date'] );
+        $steps        = absint( $_POST['steps'] );
+        $water        = absint( $_POST['water'] );
+        $training     = absint( $_POST['training_time'] );
+        $diet         = absint( $_POST['diet_rating'] );
+        global $wpdb;
+        $table = $wpdb->prefix . 'user_daily_metrics';
+        $wpdb->replace(
+            $table,
+            [
+                'user_id'       => $user_id,
+                'met_date'      => $date,
+                'steps'         => $steps,
+                'water_ml'      => $water,
+                'training_time' => $training,
+                'diet_rating'   => $diet,
+            ],
+            [ '%d','%s','%d','%d','%d','%d' ]
+        );
+        wp_send_json_success();
+    }
+    add_action( 'wp_ajax_fm_save_metrics', 'fm_ajax_save_metrics' );
+
+
+function fm_ajax_get_history() {
+    check_ajax_referer( 'fm_metrics_nonce', 'security' );
+
+    if ( ! is_user_logged_in() ) {
+        wp_send_json_error( 'not_logged_in' );
+    }
+
+    // Determinar para qué usuario obtener el historial:
+    // Si se pasa user_id por POST y el usuario actual puede verlo, lo usamos;
+    // en caso contrario, recuperamos el del usuario actual.
+    $requested_user = isset( $_POST['user_id'] ) 
+        ? absint( $_POST['user_id'] ) 
+        : get_current_user_id();
+
+
+    $history = fm_get_metrics_history( $requested_user );
+    wp_send_json_success( [ 'history' => $history ] );
+}
+add_action( 'wp_ajax_fm_get_history', 'fm_ajax_get_history' );

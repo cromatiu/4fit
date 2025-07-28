@@ -424,7 +424,7 @@ function fourfit_get_and_set_exchanges_by_csv($csv_path) {
                     $table = $wpdb->prefix . 'eur_aed_exchanges'; // CONSULTA LA TABLA EN EUROS
                     break;
                 default:
-                    continue; // SI NO ESTÁ CLARA LA MONEDA SALTAMOS AL SIGUIENTE
+                    continue 2; // SI NO ESTÁ CLARA LA MONEDA SALTAMOS AL SIGUIENTE
             }
             echo 'moneda - ' . $moneda . '<br>';
             if($date_tax[0] != 'Fecha') {

@@ -157,6 +157,33 @@ function get_clients_list_from_distributor ($atts) {
     }
     return $html;
 }
+/**
+ * Shortcode [busca_cliente]
+ * Genera un formulario mínimo que recarga la página actual con ?cliente=…
+ */
+function busca_cliente_form_shortcode( $atts ) {
+    // Valor actual (para mantenerlo en el input tras la búsqueda)
+    $valor = isset( $_GET['cliente'] ) ? sanitize_text_field( $_GET['cliente'] ) : '';
+
+    // URL actual sin el parámetro cliente (para no duplicarlo)
+    $action = remove_query_arg( 'cliente' );
+
+    ob_start(); 
+    ?>
+    <form action="<?php echo esc_url( $action ); ?>" method="get">
+        <input
+            type="text"
+            name="cliente"
+            value="<?php echo esc_attr( $valor ); ?>"
+            placeholder="Busca cliente…"
+            required
+        />
+        <button type="submit">Buscar</button>
+    </form>
+    <?php
+    return ob_get_clean();
+}
+add_shortcode( 'buscador_cliente', 'busca_cliente_form_shortcode' );
 
 
 
@@ -277,31 +304,6 @@ function display_customer_meta ($atts) {
     return $data;
 }
 
-
-
-// OBTENEMOS METADATOS DE CLIENTE
-add_shortcode('all_customer_meta', 'display_all_customer_meta');
-function display_all_customer_meta ($atts) {
-
-    $data = '';
-    $atts = shortcode_atts(
-		array(
-			'key' => '',
-		),
-		$atts,
-		'customer_meta'
-	);
-
-    if(isset($_GET['perfil-cliente'])) {
-        $user_id = intval($_GET['perfil-cliente']);        
-        $data = get_user_meta( $user_id);
-    }
-    
-    $pre_data = '<pre>' . var_export( $data, true ) . '</pre>';
-
-    return $pre_data;
-
-}
 
 function fourfit_get_users_data () {
     $data =  '';

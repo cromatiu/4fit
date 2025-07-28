@@ -12,20 +12,48 @@ License: No tiene
 
 use FileBird\Classes\Tree;
 
+
+if ( ! defined( 'FOURFIT_PLUGIN_URL' ) ) {
+    define( 'FOURFIT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+}
+
 function forfit_wp_enqueue_scripts() {
-    $version = '005';
+    $version = '009';
+    $countries = new WC_Countries();
     wp_enqueue_style( 'custom-styles', plugin_dir_url( __FILE__ ) . 'assets/css/custom-styles.css', array(), $version );
     
     wp_register_script( 'custom-scripts', plugin_dir_url( __FILE__ ) . 'assets/js/custom-scripts.js', array(), $version );
     wp_register_script( 'flatpikr', plugin_dir_url( __FILE__ ) . 'assets/js/flatpickr.min.js', array(), $version );
     wp_register_script( 'flatpikr-es', plugin_dir_url( __FILE__ ) . 'assets/js/fatpickr.es.js', array(), $version );
     wp_localize_script( 'custom-scripts', 'WPURLS', array( 'siteurl' => get_option('siteurl') )); 
+    wp_localize_script( 'custom-scripts', 'FMmetrics', [
+            'ajax_url' => admin_url( 'admin-ajax.php' ),
+            'nonce'    => wp_create_nonce( 'fm_metrics_nonce' ),
+        ]);
+
+    wp_localize_script('custom-scripts', 'wpamStatesByCountry', $countries->get_states());
     
+    wp_register_script( 'chart', plugin_dir_url( __FILE__ ) . 'assets/js/chart.js', array(), $version );
+    wp_register_script( 'slick', plugin_dir_url( __FILE__ ) . 'assets/js/slick.min.js', array(), $version );
+       if (function_exists('is_woocommerce')) {
+        wp_enqueue_script('select2');
+        wp_enqueue_style('select2');
+    }
+    wp_enqueue_script(
+        'lottie-web',
+        'https://unpkg.com/lottie-web@5.9.6/build/player/lottie.min.js',
+        [],
+        null,
+        true
+    );
+ 
 
     wp_enqueue_script( 'localize-url' );    
     wp_enqueue_script( 'custom-scripts' );
     wp_enqueue_script( 'flatpikr' );
     wp_enqueue_script( 'flatpikr-es' );
+    wp_enqueue_script( 'chart' );
+    wp_enqueue_script( 'slick' );
 }
 
 add_action( 'wp_enqueue_scripts', 'forfit_wp_enqueue_scripts', 20 );
@@ -36,6 +64,13 @@ function forfit_admin_wp_enqueue_scripts() {
     wp_enqueue_script('jquery');
     wp_register_script('ff-script-admin', plugin_dir_url( __FILE__ ) . 'assets/js/admin-scripts.js', array('jquery'), '1.0', true);
     wp_localize_script( 'ff-script-admin', 'WPURLS', array( 'siteurl' => get_option('siteurl') )); 
+
+    wp_localize_script(
+        '4fitplan-main',
+        'fourfitplan_vars',
+        [ 'ajaxurl' => admin_url('admin-ajax.php') ]
+    );
+    
     wp_enqueue_script( 'localize-url' );    
     // Añadir tu script personalizado para el área de administración
     wp_enqueue_script('ff-script-admin');
@@ -135,12 +170,20 @@ require('inc/helper-functions.php');
 require('inc/api-handler.php');
 require('inc/db-handler.php');
 require('inc/form-handler.php');
+require('inc/notifications.php');
 require('inc/shortcodes.php');
 require('inc/signup-form.php');
 require('inc/db_admin.php');
-require('inc/user-data.php');
+require('inc/user-display-data.php');
+require('inc/user-get-data.php');
+require('inc/affiliates-profile.php');
+
 
 register_activation_hook(__FILE__, 'crear_tabla_planes_alimentacion');
+register_activation_hook(__FILE__, 'fe_create_exercise_plans_table' );
+register_activation_hook( __FILE__, 'fe_create_motivational_messages_table' );
+register_activation_hook( __FILE__, 'crear_tabla_recetas' );
+register_activation_hook( __FILE__, 'fm_create_metrics_table' );
 
 function get_role_name($role_slug) {
     $role_name = '';
@@ -458,3 +501,62 @@ function get_role_name_from_slug( $role_slug ) {
 
     return false;
 }
+
+// Limitar Heartbeat API solo a admin y cada 60 segundos
+add_filter( 'heartbeat_settings', function( $settings ) {
+    if ( is_admin() ) {
+        $settings['interval'] = 60; // 60 segundos (default es 15)
+    }
+    return $settings;
+});
+
+// Desactivar Heartbeat en frontend y editor
+add_action( 'init', function() {
+    if ( !is_admin() ) {
+        wp_deregister_script('heartbeat');
+    }
+});
+
+// Desactivar completamente XML-RPC
+add_filter( 'xmlrpc_enabled', '__return_false' );
+
+// Opcional: bloquear manualmente accesos a xmlrpc.php
+add_action('template_redirect', function() {
+    if (strpos($_SERVER['REQUEST_URI'], 'xmlrpc.php') !== false) {
+        wp_die('XML-RPC is disabled on this site.', 'XML-RPC Disabled', ['response' => 403]);
+    }
+});
+
+// Cachear get_user_meta
+function get_cached_user_meta( $user_id ) {
+    $user_data = wp_cache_get( 'userdata_' . $user_id, 'user_meta' );
+    if ( false === $user_data ) {
+        $user_data = get_user_meta( $user_id );
+        wp_cache_set( 'userdata_' . $user_id, $user_data, 'user_meta', 300 ); // 5 min
+    }
+    return $user_data;
+}
+
+// Invalida el cache automáticamente al actualizar cualquier usermeta
+add_action( 'updated_user_meta', function( $meta_id, $user_id, $meta_key, $meta_value ) {
+    wp_cache_delete( 'userdata_' . $user_id, 'user_meta' );
+}, 10, 4 );
+
+// Si eliminas al usuario, también limpia
+add_action( 'deleted_user', function( $user_id ) {
+    wp_cache_delete( 'userdata_' . $user_id, 'user_meta' );
+});
+add_action( 'wp_enqueue_scripts', function() {
+    wp_dequeue_script( 'wc-cart-fragments' );
+}, 11 );
+remove_action( 'woocommerce_after_single_product_summary', 'woocommerce_output_related_products', 20 );
+add_action( 'wp_enqueue_scripts', function() {
+    if ( ! is_woocommerce() && ! is_cart() && ! is_checkout() ) {
+        wp_dequeue_style( 'woocommerce-general' );
+        wp_dequeue_style( 'woocommerce-layout' );
+        wp_dequeue_style( 'woocommerce-smallscreen' );
+        wp_dequeue_script( 'wc-add-to-cart' );
+    }
+});
+
+

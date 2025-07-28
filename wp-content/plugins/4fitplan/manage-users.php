@@ -1181,6 +1181,8 @@ function execute_on_add_user_role_event($user_id, $role){
  }
  add_shortcode('verification_message', 'fourfit_change_subscription_verificacion');
 
+
+ // shortcode que se recibe del formulario para cambiar el plan del cliente
  function fourfit_change_subscription(){
     $response = '';
     if(isset($_GET['_wpnonce']) && isset($_GET['cliente'])) {
